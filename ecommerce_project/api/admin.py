@@ -1,9 +1,12 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import City, Customer, Product, Category, Brand, State
+from .models import City, Customer, Product, Category, Brand, State, UserProfile, ProfileFeedItem
 
 # Register your models here.
+admin.site.register(UserProfile)
+admin.site.register(ProfileFeedItem)
+
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):

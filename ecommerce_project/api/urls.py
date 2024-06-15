@@ -1,7 +1,14 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register('profile', views.UserProfileViewSet)
+router.register('carts', views.CartViewSet)
+router.register('orders',views.OrderViewSet)
 
 urlpatterns = [
+    path('', include(router.urls)),
     path('categories/', views.CategoryListCreateAPIView.as_view(), name='category-list-create'),
     path('categories/<int:pk>/', views.CategoryRetrieveUpdateDestroyAPIView.as_view(), name='category-retrieve-update-destroy'),
 
