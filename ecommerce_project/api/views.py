@@ -9,13 +9,13 @@ from api import models
 from api import permissions
 from api import serializers
 
-class UserProfileViewSet(viewsets.ModelViewSet):
-    """Handle creating and updating profiles"""
-    serializer_class = serializers.UserProfileSerializer
-    queryset = models.UserProfile.objects.all()
+class UserViewSet(viewsets.ModelViewSet):
+    """Handle creating and updating users"""
+    serializer_class = serializers.UserSerializer
+    queryset = models.User.objects.all()
     # 1
     authentication_classes = (TokenAuthentication,)
-    permission_classes = (permissions.UpdateOwnProfile,)
+    permission_classes = (IsAuthenticated, permissions.IsAdmin)
     # 2
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name', 'email',)
@@ -96,7 +96,7 @@ class CartViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.CartSerializer
     queryset = models.Cart.objects.all()
 
-    permission_classes = (IsAuthenticated, permissions.IsOwner)
+    permission_classes = (IsAuthenticated, permissions.IsOwner, permissions.IsCustomer)
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
@@ -105,7 +105,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     queryset = models.Order.objects.all()
     serializer_class = serializers.OrderSerializer
     authentication_classes = (TokenAuthentication,)
-    permission_classes = [IsAuthenticated, permissions.IsOwner]
+    permission_classes = [IsAuthenticated, permissions.IsOwner, permissions.IsCustomer]
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
