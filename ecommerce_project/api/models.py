@@ -16,7 +16,6 @@ class User(AbstractUser, PermissionsMixin):
     email = models.EmailField(max_length=255, unique=True)
     name = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
-    
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
 
@@ -149,7 +148,7 @@ class Cart(models.Model):
             return self.quantity * self.product.discount_price
           else:
             return self.quantity * self.product.price
- 
+
 
 class Order(models.Model):
     STATUS_CHOICES = [
@@ -158,14 +157,14 @@ class Order(models.Model):
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
     ]
-    
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     @property
     def total_cost(self):
         if self.product.discount_price:
