@@ -7,13 +7,13 @@ from django.conf import settings
 class UserProfileManager(BaseUserManager):
     """Manager for user profiles"""
 
-    def create_user(self, email, name, password=None):
+    def create_user(self, email, name, password=None,role='customer'):
         """Create a new user profile"""
         if not email:
             raise ValueError('Users must have an email address')
 
         email = self.normalize_email(email)
-        user = self.model(email=email, name=name, )
+        user = self.model(email=email, name=name,role=role )
 
         user.set_password(password)
         user.save(using=self._db)
@@ -22,7 +22,7 @@ class UserProfileManager(BaseUserManager):
 
     def create_superuser(self, email, name, password):
         """Create and save a new superuser with given details"""
-        user = self.create_user(email, name, password)
+        user = self.create_user(email, name, password, role='admin')
 
         user.is_superuser = True
         user.is_staff = True
@@ -46,7 +46,7 @@ class User(AbstractUser, PermissionsMixin):
     objects = UserProfileManager()
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['name', 'role']
+    REQUIRED_FIELDS = ['name']
 
     def get_full_name(self):
         """Retrieve full name for user"""
