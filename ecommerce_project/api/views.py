@@ -1,13 +1,31 @@
 from rest_framework import generics, filters, viewsets
 from rest_framework.settings import api_settings
-from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .serializer import UserSerializer, LoginSerializer
+from django.contrib.auth import get_user_model
 
 from api import models
 from api import permissions
 from api import serializer
+
+
+class RegisterView(generics.CreateAPIView):
+    queryset = get_user_model().objects.all()
+    serializer_class = UserSerializer
+
+class LoginView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data['user']
+            tokens = serializer.get_tokens(user)
+            return Response(tokens, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserViewSet(viewsets.ModelViewSet):
     """Handle creating and updating users"""

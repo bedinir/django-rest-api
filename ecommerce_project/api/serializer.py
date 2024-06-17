@@ -1,5 +1,11 @@
 from rest_framework import serializers
 from api import models
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+
+User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializes a user object"""
@@ -8,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = models.User
         fields = ('id', 'email', 'name', 'password','role')
         extra_kwargs = {
-            'password': 
+            'password':
             {
                 'write_only': True,
                 'style': {'input_type': 'password'},
@@ -26,7 +32,38 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
         return user
-    
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        style={'input_type': 'password'},
+        trim_whitespace=False
+    )
+
+    def validate(self, data):
+        email = data.get('email')
+        password = data.get('password')
+
+        if email and password:
+            user = authenticate(request=self.context.get('request'), email=email, password=password)
+
+            if not user:
+                msg = _('Unable to log in with provided credentials.')
+                raise serializers.ValidationError(msg, code='authorization')
+        else:
+            msg = _('Must include "email" and "password".')
+            raise serializers.ValidationError(msg, code='authorization')
+
+        data['user'] = user
+        return data
+
+    def get_tokens(self, user):
+        refresh = RefreshToken.for_user(user)
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+
 class ProfileFeedItemSerializer(serializers.ModelSerializer):
     """Serializes profile feed items"""
 
