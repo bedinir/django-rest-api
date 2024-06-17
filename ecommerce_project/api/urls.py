@@ -1,4 +1,6 @@
 from django.urls import path, include
+from .views import CartViewSet, OrderViewSet, RegisterView, LoginView,UserViewSet
+
 from rest_framework.routers import DefaultRouter
 
 from .views import CartViewSet, CategoryListCreateAPIView, CategoryRetrieveUpdateDestroyAPIView, CityListCreateAPIView, CityRetrieveUpdateDestroyAPIView, LoginView, OrderViewSet, ProductListCreateAPIView, ProductRetrieveUpdateDestroyAPIView, RegisterView, StateListCreateAPIView, StateRetrieveUpdateDestroyAPIView, UserViewSet
