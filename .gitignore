@@ -42,7 +42,7 @@ coverage.xml
 .python-version
 
 # VirtualEnv
-.venv/
+.env/
 
 # Developers
 *.sw*
@@ -51,3 +51,4 @@ manage.py
 
 # example database
 drf_example
+
