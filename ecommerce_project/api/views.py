@@ -82,13 +82,13 @@ class CityRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = models.City.objects.all()
     serializer_class = serializer.CitySerializer
 
-class CustomerListCreateAPIView(generics.ListCreateAPIView):
-    queryset = models.Customer.objects.all()
-    serializer_class = serializer.CustomerSerializer
+# class CustomerListCreateAPIView(generics.ListCreateAPIView):
+#     queryset = models.Customer.objects.all()
+#     serializer_class = serializer.CustomerSerializer
 
-class CustomerRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = models.Customer.objects.all()
-    serializer_class = serializer.CustomerSerializer
+# class CustomerRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+#     queryset = models.Customer.objects.all()
+#     serializer_class = serializer.CustomerSerializer
 
 
 class CartViewSet(viewsets.ModelViewSet):

@@ -61,12 +61,6 @@ class CitySerializer(serializers.ModelSerializer):
         model = models.City
         fields = '__all__'
 
-class CustomerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Customer
-        fields = '__all__'
-
-
 class CartSerializer(serializers.ModelSerializer):
     total_cost = serializers.ReadOnlyField()
 

@@ -24,6 +24,6 @@ urlpatterns = [
     path('cities/', views.CityListCreateAPIView.as_view(), name='city-list-create'),
     path('cities/<int:pk>/', views.CityRetrieveUpdateDestroyAPIView.as_view(), name='city-retrieve-update-destroy'),
 
-    path('customers/', views.CustomerListCreateAPIView.as_view(), name='customer-list-create'),
-    path('customers/<int:pk>/', views.CustomerRetrieveUpdateDestroyAPIView.as_view(), name='customer-retrieve-update-destroy'),
+    # path('customers/', views.CustomerListCreateAPIView.as_view(), name='customer-list-create'),
+    # path('customers/<int:pk>/', views.CustomerRetrieveUpdateDestroyAPIView.as_view(), name='customer-retrieve-update-destroy'),
 ]
