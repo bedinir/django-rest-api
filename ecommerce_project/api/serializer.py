@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from api import models
+from django.utils.text import slugify
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializes a user object"""
@@ -36,30 +37,61 @@ class ProfileFeedItemSerializer(serializers.ModelSerializer):
         extra_kwargs = {'user_profile': {'read_only': True}}
 
 
-class CategorySerializer(serializers.ModelSerializer):
-  class Meta:
-        model = models.Category
-        fields = '__all__'
-
-class BrandSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Brand
-        fields = '__all__'
-
-class ProductSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Product
-        fields = '__all__'
-
 class StateSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.State
         fields = '__all__'
 
 class CitySerializer(serializers.ModelSerializer):
+    state = serializers.CharField(write_only=True)
+
     class Meta:
         model = models.City
         fields = '__all__'
+
+    def create(self, validated_data):
+        state_abbreviation = validated_data.pop('state')
+        try:
+            state = models.State.objects.get(abbreviation=state_abbreviation)
+        except models.State.DoesNotExist:
+            raise serializers.ValidationError(f"State with abbreviation '{state_abbreviation}' does not exist.")
+        
+        city = models.City.objects.create(state=state, **validated_data)
+        return city
+    
+class BrandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Brand
+        fields = '__all__'
+        
+class CategorySerializer(serializers.ModelSerializer):
+    slug = serializers.SlugField(required=False, allow_blank=True) 
+
+    class Meta:
+        model = models.Category
+        fields = '__all__'
+        read_only_fields = ('created_at', 'updated_at')
+
+    def create(self, validated_data):
+        # Auto-generate slug if not provided
+        if 'slug' not in validated_data or not validated_data['slug']:
+            validated_data['slug'] = slugify(validated_data['name'])
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Auto-generate slug if not provided
+        if 'slug' not in validated_data or not validated_data['slug']:
+            validated_data['slug'] = slugify(validated_data.get('name', instance.name))
+        return super().update(instance, validated_data)
+
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Product
+        fields = '__all__'
+
+
 
 class CartSerializer(serializers.ModelSerializer):
     total_cost = serializers.ReadOnlyField()

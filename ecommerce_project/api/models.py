@@ -59,8 +59,6 @@ class User(AbstractUser, PermissionsMixin):
     def __str__(self):
         """Return string representation of user"""
         return self.email
-
-
 class ProfileFeedItem(models.Model):
     """Profile status update"""
     user_profile = models.ForeignKey(
@@ -74,13 +72,44 @@ class ProfileFeedItem(models.Model):
         """Return the model as a string"""
         return self.status_text
 
+
+class State(models.Model):
+    abbreviation = models.CharField(max_length=2, unique=True)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name = 'State'
+        verbose_name_plural = 'States'
+
+    def __str__(self):
+        return self.name
+
+class City(models.Model):
+    name = models.CharField(max_length=100)
+    state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='cities')
+
+    class Meta:
+        verbose_name = 'City'
+        verbose_name_plural = 'Cities'
+
+    def __str__(self):
+        return f"{self.name}, {self.state.abbreviation}"
+
+class Brand(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        verbose_name = 'Brand'
+        verbose_name_plural = 'Brands'
+
+    def __str__(self):
+        return self.name
+
+
 class Category(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
-    parent_category = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
-    image = models.ImageField(upload_to='category_images/', null=True, blank=True)
-    is_featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -97,17 +126,6 @@ class Category(models.Model):
         return self.name
 
 
-class Brand(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-
-    class Meta:
-        verbose_name = 'Brand'
-        verbose_name_plural = 'Brands'
-
-    def __str__(self):
-        return self.name
-
-
 class Product(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -117,8 +135,6 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     stock_quantity = models.IntegerField(default=0)
-    sku = models.CharField(max_length=50, unique=True)
-    image = models.ImageField(upload_to='product_images/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -135,29 +151,6 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
-
-class State(models.Model):
-    abbreviation = models.CharField(max_length=2, unique=True)
-    name = models.CharField(max_length=100)
-
-    class Meta:
-        verbose_name = 'State'
-        verbose_name_plural = 'States'
-
-    def __str__(self):
-        return self.name
-
-
-class City(models.Model):
-    name = models.CharField(max_length=100)
-    state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='cities')
-
-    class Meta:
-        verbose_name = 'City'
-        verbose_name_plural = 'Cities'
-
-    def __str__(self):
-        return f"{self.name}, {self.state.abbreviation}"
 
 
 class Cart(models.Model):

@@ -39,24 +39,53 @@ class UserProfileFeedViewSet(viewsets.ModelViewSet):
         """Sets the user profile to the logged in user"""
         serializer.save(user_profile=self.request.user)
 
+class StateViewSet(viewsets.ModelViewSet):
+    queryset = models.State.objects.all()
+    serializer_class = serializer.StateSerializer
+    authentication_classes = [TokenAuthentication]
 
+    def get_permissions(self):
+        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            permission_classes = [IsAuthenticated & permissions.IsAdmin]
+        else:
+            permission_classes = [IsAuthenticated & (permissions.IsAdmin | permissions.IsCustomer)]
+        return [permission() for permission in permission_classes]
 
+class CityViewSet(viewsets.ModelViewSet):
+    queryset = models.City.objects.all()
+    serializer_class = serializer.CitySerializer
+    authentication_classes = [TokenAuthentication]
 
-class CategoryListCreateAPIView(generics.ListCreateAPIView):
-    queryset = models.Category.objects.all()
-    serializer_class = serializer.CategorySerializer
+    def get_permissions(self):
+        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            permission_classes = [IsAuthenticated & permissions.IsAdmin]
+        else:
+            permission_classes = [IsAuthenticated & (permissions.IsAdmin | permissions.IsCustomer)]
+        return [permission() for permission in permission_classes]
 
-class CategoryRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = models.Category.objects.all()
-    serializer_class = serializer.CategorySerializer
-
-class BrandListCreateAPIView(generics.ListCreateAPIView):
+class BrandViewSet(viewsets.ModelViewSet):
     queryset = models.Brand.objects.all()
     serializer_class = serializer.BrandSerializer
+    authentication_classes = [TokenAuthentication]
 
-class BrandRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = models.Brand.objects.all()
-    serializer_class = serializer.BrandSerializer
+    def get_permissions(self):
+        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            permission_classes = [IsAuthenticated & permissions.IsAdmin]
+        else:
+            permission_classes = [IsAuthenticated & (permissions.IsAdmin | permissions.IsCustomer)]
+        return [permission() for permission in permission_classes]
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = models.Category.objects.all()
+    serializer_class = serializer.CategorySerializer
+    authentication_classes = [TokenAuthentication]
+
+    def get_permissions(self):
+        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            permission_classes = [IsAuthenticated & permissions.IsAdmin]
+        else:
+            permission_classes = [IsAuthenticated & (permissions.IsAdmin | permissions.IsCustomer)]
+        return [permission() for permission in permission_classes]
 
 class ProductListCreateAPIView(generics.ListCreateAPIView):
     queryset = models.Product.objects.all()
@@ -65,30 +94,6 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
 class ProductRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = models.Product.objects.all()
     serializer_class = serializer.ProductSerializer
-
-class StateListCreateAPIView(generics.ListCreateAPIView):
-    queryset = models.State.objects.all()
-    serializer_class = serializer.StateSerializer
-
-class StateRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = models.State.objects.all()
-    serializer_class = serializer.StateSerializer
-
-class CityListCreateAPIView(generics.ListCreateAPIView):
-    queryset = models.City.objects.all()
-    serializer_class = serializer.CitySerializer
-
-class CityRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = models.City.objects.all()
-    serializer_class = serializer.CitySerializer
-
-# class CustomerListCreateAPIView(generics.ListCreateAPIView):
-#     queryset = models.Customer.objects.all()
-#     serializer_class = serializer.CustomerSerializer
-
-# class CustomerRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-#     queryset = models.Customer.objects.all()
-#     serializer_class = serializer.CustomerSerializer
 
 
 class CartViewSet(viewsets.ModelViewSet):
