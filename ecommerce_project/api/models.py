@@ -180,6 +180,12 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    street_address = models.CharField(max_length=255)
+    city = models.ForeignKey(City, on_delete=models.CASCADE) 
+    state = models.ForeignKey(State, on_delete=models.CASCADE)
+    postal_code = models.CharField(max_length=20)
+    phone_number = models.CharField(max_length=20)  
+
     @property
     def total_cost(self):
         if self.product.discount_price:

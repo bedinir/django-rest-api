@@ -4,21 +4,21 @@ from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.utils.text import slugify
+from django.db import IntegrityError
 
 User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('email', 'name', 'password', 'role')
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = ('email', 'name', 'password')
+        extra_kwargs = {'password': {'write_only': True},'role': {'write_only': True}}
 
     def create(self, validated_data):
         user = User.objects.create_user(
             email=validated_data['email'],
             name=validated_data['name'],
-            password=validated_data['password'],
-            role=validated_data['role']
+            password=validated_data['password']
         )
         return user
 
@@ -38,14 +38,19 @@ class LoginSerializer(serializers.Serializer):
 
             if not user:
                 raise serializers.ValidationError('Invalid credentials')
-            
+
             data['user'] = user
-            data['token'], created = Token.objects.get_or_create(user=user)
+
+            try:
+                token, created = Token.objects.get_or_create(user=user)
+                data['token'] = token.key
+            except IntegrityError as e:
+                raise serializers.ValidationError('Error creating token') from e
+
         else:
             raise serializers.ValidationError('Must include "email" and "password".')
 
         return data
-    
 class ProfileFeedItemSerializer(serializers.ModelSerializer):
     """Serializes profile feed items"""
 
@@ -144,12 +149,8 @@ class ProductSerializer(serializers.ModelSerializer):
         category_id = validated_data.pop('category_id', None)
         brand_id = validated_data.pop('brand_id', None)
 
-        instance.name = validated_data.get('name', instance.name)
-        instance.description = validated_data.get('description', instance.description)
-        instance.price = validated_data.get('price', instance.price)
-        instance.discount_price = validated_data.get('discount_price', instance.discount_price)
-        instance.stock_quantity = validated_data.get('stock_quantity', instance.stock_quantity)
-        instance.is_active = validated_data.get('is_active', instance.is_active)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
 
         if category_id:
             try:
@@ -195,31 +196,85 @@ class CartSerializer(serializers.ModelSerializer):
         return instance
 
 class OrderSerializer(serializers.ModelSerializer):
-    total_cost = serializers.ReadOnlyField()
+    
+   city_id = serializers.PrimaryKeyRelatedField(queryset=models.City.objects.all(), source='city', write_only=True)
+   product_id = serializers.PrimaryKeyRelatedField(queryset=models.Product.objects.all(), source='product', write_only=True)
+   state = serializers.SerializerMethodField() 
 
-    class Meta:
+   total_cost = serializers.ReadOnlyField()
+
+   class Meta:
         model = models.Order
-        fields = ['id', 'user', 'product', 'quantity', 'status', 'total_cost', 'created_at', 'updated_at']
+        fields = '__all__'  
         extra_kwargs = {
-            'user': {'read_only': True},  # Make the user field read-only
-            'status': {'read_only': True},  # Optionally make status read-only on creation
+            'user': {'read_only': True},  
+            'status': {'read_only': True},  
             'created_at': {'read_only': True},
-            'updated_at': {'read_only': True}
+            'updated_at': {'read_only': True},
+            'state':{'read_only': True},
         }
+   def get_state(self, obj):
+        return obj.city.state.id if obj.city else None
 
-    def create(self, validated_data):
-        """Create and return a new order"""
+   def validate(self, data):
+        required_fields = ['street_address', 'city_id', 'postal_code', 'phone_number']
+        for field in required_fields:
+            if field not in data:
+                raise serializers.ValidationError(f"{field} is required.")
+
+        return data
+
+   def create(self, validated_data):
+        city_id = validated_data.pop('city_id')
+        product_id = validated_data.pop('product_id')
+
+        try:
+            city = models.City.objects.get(id=city_id)
+        except models.City.DoesNotExist:
+            raise serializers.ValidationError("Invalid city ID.")
+        
+        try:
+            product = models.Product.objects.get(id=product_id)
+        except models.Product.DoesNotExist:
+            raise serializers.ValidationError("Invalid product ID.")
+        
+        state = city.state
+
         order = models.Order.objects.create(
-            user=self.context['request'].user,  # Assign the authenticated user
-            product=validated_data['product'],
-            quantity=validated_data['quantity']
+            user=self.context['request'].user,
+            city=city,
+            state=state,
+            product=product,
+            **validated_data
         )
-        return order
 
-    def update(self, instance, validated_data):
-        """Update and return an existing order"""
-        instance.product = validated_data.get('product', instance.product)
-        instance.quantity = validated_data.get('quantity', instance.quantity)
-        instance.status = validated_data.get('status', instance.status)
+        return order
+   
+   def update(self, instance, validated_data):
+        
+        if instance.status != 'pending':
+            raise serializers.ValidationError("Only orders with status 'PENDING' can be updated.")
+
+        city_id = validated_data.pop('city_id', {}).get('id')
+        product_id = validated_data.pop('product_id', {}).get('id')
+
+        if city_id:
+            try:
+                city = models.City.objects.get(id=city_id)
+                instance.city = city
+                instance.state = city.state
+            except models.City.DoesNotExist:
+                raise serializers.ValidationError("Invalid city ID.")
+        
+        if product_id:
+            try:
+                product = models.Product.objects.get(id=product_id)
+                instance.product = product
+            except models.Product.DoesNotExist:
+                raise serializers.ValidationError("Invalid product ID.")
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
         instance.save()
         return instance

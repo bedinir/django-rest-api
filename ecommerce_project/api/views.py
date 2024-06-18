@@ -142,8 +142,28 @@ class CartViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = models.Order.objects.all()
     serializer_class = serializer.OrderSerializer
-    authentication_classes = (TokenAuthentication,)
-    permission_classes = [IsAuthenticated, permissions.IsOwner, permissions.IsCustomer]
+    permission_classes = [IsAuthenticated, permissions.IsAdminOrOwner]
 
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
+        user = self.request.user
+        if user.role == 'admin':
+            return models.Order.objects.all()
+        return models.Order.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.status != 'pending':
+            return Response({"detail": "Cannot update order unless it is in 'pending' status."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.status != 'pending':
+            return Response({"detail": "Cannot delete order unless it is in 'pending' status."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)

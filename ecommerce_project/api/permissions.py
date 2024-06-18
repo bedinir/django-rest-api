@@ -21,7 +21,22 @@ class UpdateOwnStatus(permissions.BasePermission):
             return True
 
         return obj.user_profile.id == request.user.id
+class IsAdminOrOwner(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.user.is_authenticated:
+            return True
+        return False
 
+    def has_object_permission(self, request, view, obj):
+        if request.user.role == 'admin':
+            return True
+        if request.user.role == 'customer':
+            if request.method in permissions.SAFE_METHODS:
+                return obj.user == request.user
+            if request.method in ['PUT', 'PATCH', 'DELETE']:
+                return obj.user == request.user and obj.status == 'pending'
+        return False
+    
 class IsAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.role == 'admin'
