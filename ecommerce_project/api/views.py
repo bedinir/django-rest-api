@@ -1,6 +1,5 @@
-from rest_framework import generics, filters, viewsets
+from rest_framework import generics, viewsets,status
 from rest_framework.settings import api_settings
-from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
@@ -9,20 +8,34 @@ from api import models
 from api import permissions
 from api import serializer
 
-class UserViewSet(viewsets.ModelViewSet):
-    """Handle creating and updating users"""
-    serializer_class = serializer.UserSerializer
-    queryset = models.User.objects.all()
-    # 1
-    authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated, permissions.IsAdmin)
-    # 2
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('name', 'email',)
-class UserLoginApiView(ObtainAuthToken):
-    """Handle creating user authentication tokens"""
-    renderer_classes = api_settings.DEFAULT_RENDERER_CLASSES
+from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
+from rest_framework.permissions import AllowAny
+from .serializer import RegisterSerializer, LoginSerializer
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
+
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
+
+class LoginView(generics.GenericAPIView):
+    serializer_class = LoginSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token = serializer.validated_data['token']
+        return Response({
+            'email': user.email,
+            'name': user.name,
+            'role': user.role,
+            'token': token.key
+        }, status=status.HTTP_200_OK)
 
 class UserProfileFeedViewSet(viewsets.ModelViewSet):
     """Handles creating, reading and updating profile feed items"""
