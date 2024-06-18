@@ -188,7 +188,6 @@ class CartToOrderView(views.APIView):
     def post(self, request, *args, **kwargs):
         user = request.user
         cart_items = models.Cart.objects.filter(user=user)
-        print(cart_items)
 
         if not cart_items.exists():
             return Response({"detail": "No items in the cart."}, status=status.HTTP_400_BAD_REQUEST)
@@ -196,9 +195,7 @@ class CartToOrderView(views.APIView):
         created_orders = []
         for cart_item in cart_items:
             product = cart_item.product
-            userr = cart_item.user
             order_data = {
-                "user": userr.id,
                 "product": product.id,
                 "quantity": cart_item.quantity,
                 "street_address": request.data.get("street_address"),

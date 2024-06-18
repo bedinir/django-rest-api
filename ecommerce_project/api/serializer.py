@@ -258,7 +258,13 @@ class OrderSerializer(serializers.ModelSerializer):
    def create(self, validated_data):
         city = validated_data.pop('city')
         product = validated_data.pop('product')
-       
+
+        
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user'):
+            raise serializers.ValidationError("User context is missing.")
+        user = request.user
+        validated_data['user'] = user
         try:
             c = models.City.objects.get(name=city)
         except models.City.DoesNotExist:
