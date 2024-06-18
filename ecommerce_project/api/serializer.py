@@ -5,6 +5,8 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.utils.text import slugify
 from django.db import IntegrityError
+from rest_framework import status
+from rest_framework.response import Response
 
 User = get_user_model()
 
@@ -170,6 +172,15 @@ class ProductSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.is_active:
+            instance.is_active = False  # Soft delete by marking as inactive
+            instance.save()
+            return Response({"message": f"Product '{instance.name}' has been deleted."}, status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response({"message": "Product is already inactive."}, status=status.HTTP_404_NOT_FOUND)
 class ProductActivationSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Product
@@ -212,20 +223,28 @@ class CartSerializer(serializers.ModelSerializer):
         product = validated_data.pop('product')
 
         try:
-            p = models.Product.objects.get(name=product)
+            p = models.Product.objects.get(pk=product.pk)  # Use pk instead of name
         except models.Product.DoesNotExist:
             raise serializers.ValidationError("Invalid product ID.")
         
-        if p.is_active == False:
-            raise serializers.ValidationError(f"This product is inactive, please choose a new one!")
+        if not p.is_active:
+            raise serializers.ValidationError(f"The product '{p.name}' is inactive, please choose a different one!")
 
-        if p.stock_quantity < validated_data.pop('quantity'):
-            raise serializers.ValidationError(f"Insufficient stock for product ID {product}. Available stock: {p.stock_quantity}.")
+        if p.stock_quantity < validated_data.get('quantity', instance.quantity):
+            raise serializers.ValidationError(f"Insufficient stock for product '{p.name}'. Available stock: {p.stock_quantity}.")
 
         instance.product = product
         instance.quantity = validated_data.get('quantity', instance.quantity)
         instance.save()
-        return instance
+        return instance 
+    
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance:
+            instance.delete()
+            return Response({"message": f"Cart item ID {instance.id} has been deleted."}, status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response({"message": "Cart item not found."}, status=status.HTTP_404_NOT_FOUND)
 
 class OrderSerializer(serializers.ModelSerializer):
    city = serializers.PrimaryKeyRelatedField(queryset=models.City.objects.all())
@@ -299,26 +318,22 @@ class OrderSerializer(serializers.ModelSerializer):
         city = validated_data.pop('city')
         product = validated_data.pop('product')
 
-        if city:
-            try:
-                c = models.City.objects.get(name=city)
-                instance.city = c
-                instance.state = c.state
-            except models.City.DoesNotExist:
-                raise serializers.ValidationError("Invalid city ID.")
-        
-        if product:
-            try:
-                p = models.Product.objects.get(name=product)
-                instance.product = p
-            except models.Product.DoesNotExist:
-                raise serializers.ValidationError("Invalid product ID.")
-            
-        if p.is_active == False:
-            raise serializers.ValidationError(f"This product is inactive, please choose a new one!")
+        try:
+            c = models.City.objects.get(pk=city.pk)
+            instance.city = c
+            instance.state = c.state
+        except models.City.DoesNotExist:
+            raise serializers.ValidationError("Invalid city ID.")
 
-        if p.stock_quantity < validated_data.pop('quantity'):
-            raise serializers.ValidationError(f"Insufficient stock for product ID {product}. Available stock: {p.stock_quantity}.")
+        try:
+            p = models.Product.objects.get(pk=product.pk)
+            instance.product = p
+            if not p.is_active:
+                raise serializers.ValidationError(f"This product '{p.name}' is inactive, please choose a different one!")
+            if p.stock_quantity < validated_data.get('quantity', instance.quantity):
+                raise serializers.ValidationError(f"Insufficient stock for product '{p.name}'. Available stock: {p.stock_quantity}.")
+        except models.Product.DoesNotExist:
+            raise serializers.ValidationError("Invalid product ID.")
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
