@@ -136,4 +136,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'api.CustomUser'
 
-AUTH_TOKEN_EXPIRATION = timezone.timedelta(days=1)
+AUTH_TOKEN_EXPIRATION = timezone.timedelta(minutes=1)
