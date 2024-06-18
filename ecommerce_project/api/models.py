@@ -1,64 +1,50 @@
 from django.db import models
 from django.utils.text import slugify
-from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.models import PermissionsMixin
 from django.conf import settings
 
-class UserProfileManager(BaseUserManager):
-    """Manager for user profiles"""
-
-    def create_user(self, email, name, password=None,role='customer'):
-        """Create a new user profile"""
+class CustomUserManager(BaseUserManager):
+    def create_user(self, email, name, password=None, role='customer', **extra_fields):
         if not email:
-            raise ValueError('Users must have an email address')
-
+            raise ValueError('The Email field must be set')
         email = self.normalize_email(email)
-        user = self.model(email=email, name=name,role=role )
-
+        user = self.model(email=email, name=name, role=role, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
-
         return user
 
-    def create_superuser(self, email, name, password):
-        """Create and save a new superuser with given details"""
-        user = self.create_user(email, name, password, role='admin')
+    def create_superuser(self, email, name, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
 
-        user.is_superuser = True
-        user.is_staff = True
-        user.save(using=self._db)
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
 
-        return user
-class User(AbstractUser, PermissionsMixin):
-    """Database model for users in the system"""
+        return self.create_user(email, name, password, 'admin', **extra_fields)
 
-    ROLE_CHOICES = (
+class CustomUser(AbstractBaseUser, PermissionsMixin):
+    ROLE_CHOICES = [
         ('admin', 'Admin'),
         ('customer', 'Customer'),
-    )
-
-    email = models.EmailField(max_length=255, unique=True)
+    ]
+    
+    email = models.EmailField(unique=True)
     name = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=True)
-
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
-
-    objects = UserProfileManager()
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    
+    objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name']
 
-    def get_full_name(self):
-        """Retrieve full name for user"""
-        return self.name
-
-    def get_role(self):
-        """Retrieve role of user"""
-        return self.role
-
     def __str__(self):
-        """Return string representation of user"""
         return self.email
+    
 class ProfileFeedItem(models.Model):
     """Profile status update"""
     user_profile = models.ForeignKey(

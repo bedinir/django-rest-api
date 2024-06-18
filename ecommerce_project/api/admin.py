@@ -1,13 +1,16 @@
 from django.contrib import admin
 
+from rest_framework.authtoken.models import Token
 # Register your models here.
-from .models import City, Product, Category, Brand, State, User, ProfileFeedItem
-
+from .models import City, Product, Category, Brand, State, ProfileFeedItem,CustomUser
+from django.contrib.auth.admin import UserAdmin
 # Register your models here.
-admin.site.register(User)
+admin.site.register(CustomUser)
 admin.site.register(ProfileFeedItem)
 admin.site.register(Product)
 admin.site.register(Category)
 admin.site.register(Brand)
 admin.site.register(State)
 admin.site.register(City)
+
+admin.site.register(Token)
