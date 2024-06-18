@@ -3,6 +3,32 @@ from django.utils.text import slugify
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.models import PermissionsMixin
 from django.conf import settings
+from django.utils import timezone
+
+class CustomToken(models.Model):
+    key = models.CharField(max_length=40, primary_key=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, related_name='custom_token', on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)
+    expires = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = self.generate_key()
+        if not self.expires:
+            self.expires = timezone.now() + settings.AUTH_TOKEN_EXPIRATION
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires
+
+    def generate_key(self):
+        from django.utils.crypto import get_random_string
+        return get_random_string(40)
+
+    class Meta:
+        verbose_name = 'Custom Token'
+        verbose_name_plural = 'Custom Tokens'
+
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, name, password=None, role='customer', **extra_fields):
@@ -44,7 +70,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
-    
+
 class ProfileFeedItem(models.Model):
     """Profile status update"""
     user_profile = models.ForeignKey(

@@ -7,6 +7,8 @@ from django.utils.text import slugify
 from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.response import Response
+from django.utils import timezone
+from django.conf import settings
 
 User = get_user_model()
 
@@ -44,7 +46,12 @@ class LoginSerializer(serializers.Serializer):
             data['user'] = user
 
             try:
-                token, created = Token.objects.get_or_create(user=user)
+                token, created = models.CustomToken.objects.get_or_create(user=user)
+                if created or token.is_expired():
+                    # Set a new expiration time if the token is newly created or expired
+                    token.expires = timezone.now() + settings.AUTH_TOKEN_EXPIRATION
+                    token.save()
+
                 data['token'] = token.key
             except IntegrityError as e:
                 raise serializers.ValidationError('Error creating token') from e
