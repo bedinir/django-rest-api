@@ -238,6 +238,12 @@ class OrderSerializer(serializers.ModelSerializer):
         except models.Product.DoesNotExist:
             raise serializers.ValidationError("Invalid product ID.")
         
+        if product.is_active == False:
+            raise serializers.ValidationError(f"This product is inactive, please choose a new one!")
+
+        if product.stock_quantity < validated_data.pop('quantity'):
+            raise serializers.ValidationError(f"Insufficient stock for product ID {product_id}. Available stock: {product.stock_quantity}.")
+
         state = city.state
 
         order = models.Order.objects.create(
@@ -272,6 +278,12 @@ class OrderSerializer(serializers.ModelSerializer):
                 instance.product = product
             except models.Product.DoesNotExist:
                 raise serializers.ValidationError("Invalid product ID.")
+            
+        if product.is_active == False:
+            raise serializers.ValidationError(f"This product is inactive, please choose a new one!")
+
+        if product.stock_quantity < validated_data.pop('quantity'):
+            raise serializers.ValidationError(f"Insufficient stock for product ID {product_id}. Available stock: {product.stock_quantity}.")
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

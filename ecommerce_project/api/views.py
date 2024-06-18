@@ -111,6 +111,14 @@ class ProductViewSet(viewsets.ModelViewSet):
         else:
             permission_classes = [IsAuthenticated & (permissions.IsAdmin | permissions.IsCustomer)]
         return [permission() for permission in permission_classes]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated and user.is_admin:
+            return models.Product.objects.all()
+        elif user.is_authenticated and user.is_customer:
+            return models.Product.objects.filter(is_active=True, stock_quantity__gt=0)
+        return models.Product.objects.none()
 class ProductActivateDeactivateView(generics.UpdateAPIView):
     queryset = models.Product.objects.all()
     serializer_class = serializer.ProductActivationSerializer
