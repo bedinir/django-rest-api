@@ -1,8 +1,10 @@
-from rest_framework import generics, viewsets,status
+from rest_framework import generics, viewsets,status,views
 from rest_framework.settings import api_settings
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from django.db import transaction
+from .serializer import ProductActivationSerializer, ProductSerializer, OrderSerializer
 
 from api import models
 from api import permissions
@@ -114,9 +116,9 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        if user.is_authenticated and user.is_admin:
+        if user.is_authenticated and user.role == 'admin':
             return models.Product.objects.all()
-        elif user.is_authenticated and user.is_customer:
+        elif user.is_authenticated and user.role == 'customer':
             return models.Product.objects.filter(is_active=True, stock_quantity__gt=0)
         return models.Product.objects.none()
 class ProductActivateDeactivateView(generics.UpdateAPIView):
@@ -125,16 +127,17 @@ class ProductActivateDeactivateView(generics.UpdateAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated & permissions.IsAdmin]
 
-    def patch(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        
-        is_active = serializer.validated_data['is_active']
-        instance.is_active = is_active
-        instance.save()
-        
-        return Response(serializer.ProductSerializer(instance).data)
+    def patch(self, request, pk):
+        try:
+            product = models.Product.objects.get(pk=pk)
+        except models.Product.DoesNotExist:
+            return Response({'error': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ProductActivationSerializer(product, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(ProductSerializer(product).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CartViewSet(viewsets.ModelViewSet):
@@ -148,6 +151,7 @@ class CartViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(user=self.request.user)
 
 class OrderViewSet(viewsets.ModelViewSet):
+    
     queryset = models.Order.objects.all()
     serializer_class = serializer.OrderSerializer
     permission_classes = [IsAuthenticated, permissions.IsAdminOrOwner]
@@ -163,15 +167,52 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.status != 'pending':
-            return Response({"detail": "Cannot update order unless it is in 'pending' status."},
+        if instance.status != 'PENDING':
+            return Response({"detail": "Cannot update order unless it is in 'PENDING' status."},
                             status=status.HTTP_400_BAD_REQUEST)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.status != 'pending':
-            return Response({"detail": "Cannot delete order unless it is in 'pending' status."},
+        if instance.status != 'PENDING':
+            return Response({"detail": "Cannot delete order unless it is in 'PENDING' status."},
                             status=status.HTTP_400_BAD_REQUEST)
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+class CartToOrderView(views.APIView):
+    permission_classes = [IsAuthenticated, permissions.IsCustomer]
+    authentication_classes = [TokenAuthentication] 
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        cart_items = models.Cart.objects.filter(user=user)
+        print(cart_items)
+
+        if not cart_items.exists():
+            return Response({"detail": "No items in the cart."}, status=status.HTTP_400_BAD_REQUEST)
+
+        created_orders = []
+        for cart_item in cart_items:
+            product = cart_item.product
+            userr = cart_item.user
+            order_data = {
+                "user": userr.id,
+                "product": product.id,
+                "quantity": cart_item.quantity,
+                "street_address": request.data.get("street_address"),
+                "city": request.data.get("city"),
+                "postal_code": request.data.get("postal_code"),
+                "phone_number": request.data.get("phone_number"),
+                "status": "PENDING"
+            }
+            serializer = OrderSerializer(data=order_data, context={'request': request})
+            serializer.is_valid(raise_exception=True)
+            order = serializer.save()
+            created_orders.append(order)
+
+        # Clear the cart after creating orders
+        cart_items.delete()
+
+        return Response(OrderSerializer(created_orders, many=True).data, status=status.HTTP_201_CREATED)

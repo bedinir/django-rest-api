@@ -110,11 +110,14 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    category_id = serializers.PrimaryKeyRelatedField(queryset=models.Category.objects.all(), source='category', write_only=True)
-    brand_id = serializers.PrimaryKeyRelatedField(queryset=models.Brand.objects.all(), source='brand', write_only=True)
+    category = serializers.PrimaryKeyRelatedField(queryset=models.Category.objects.all())
+    brand = serializers.PrimaryKeyRelatedField(queryset=models.Brand.objects.all())
+
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    brand_name = serializers.CharField(source='brand.name', read_only=True, allow_null=True)
     class Meta:
         model = models.Product
-        fields = '__all__'
+        fields = ['id', 'name', 'description', 'category', 'category_name', 'brand','brand_name', 'price', 'discount_price', 'stock_quantity', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['slug', 'created_at', 'updated_at','is_active'] 
 
     # Ensure discount_price is less than price if provided
@@ -126,16 +129,15 @@ class ProductSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        category_id = validated_data.pop('category_id')
-        brand_id = validated_data.pop('brand_id')
-
+        category = validated_data.pop('category')
+        brand = validated_data.pop('brand')
         try:
-            category = models.Category.objects.get(id=category_id)
+            x = models.Category.objects.get(name=category)
         except  models.Category.DoesNotExist:
             raise serializers.ValidationError("Invalid category ID.")
 
         try:
-            brand =  models.Brand.objects.get(id=brand_id)
+            y =  models.Brand.objects.get(name=brand)
         except  models.Brand.DoesNotExist:
             raise serializers.ValidationError("Invalid brand ID.")
 
@@ -146,63 +148,91 @@ class ProductSerializer(serializers.ModelSerializer):
         if not instance.is_active:
             raise serializers.ValidationError("Cannot update an inactive product.")
         
-        category_id = validated_data.pop('category_id', None)
-        brand_id = validated_data.pop('brand_id', None)
+        category= validated_data.pop('category', None)
+        brand = validated_data.pop('brand', None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        if category_id:
+        if category:
             try:
-                category =  models.Category.objects.get(id=category_id)
-                instance.category = category
+                x =  models.Category.objects.get(name=category)
+                instance.category = x
             except  models.Category.DoesNotExist:
                 raise serializers.ValidationError("Invalid category ID.")
 
-        if brand_id:
+        if brand:
             try:
-                brand =  models.Brand.objects.get(id=brand_id)
-                instance.brand = brand
+                y =  models.Brand.objects.get(name=brand)
+                instance.brand = y
             except  models.Brand.DoesNotExist:
                 raise serializers.ValidationError("Invalid brand ID.")
 
         instance.save()
         return instance
-class ProductActivationSerializer(serializers.Serializer):
-    is_active = serializers.BooleanField()
+class ProductActivationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Product
+        fields = ['is_active']
 
 class CartSerializer(serializers.ModelSerializer):
-    total_cost = serializers.ReadOnlyField(source='get_total_cost')
-
+    total_cost = serializers.SerializerMethodField()
+    product = serializers.PrimaryKeyRelatedField(queryset=models.Product.objects.all())
+    pr_name = serializers.CharField(source='product.name', read_only=True)
+    pr_price= serializers.DecimalField(source='product.price',max_digits=10, decimal_places=2, read_only=True)
+    pr_discount_price= serializers.DecimalField(source='product.discount_price',max_digits=10, decimal_places=2, read_only=True)
     class Meta:
         model = models.Cart
-        fields = ['id', 'user', 'product', 'quantity', 'total_cost']
+        fields = ['id', 'user', 'product', 'pr_name','pr_price','pr_discount_price','quantity', 'total_cost']
         extra_kwargs = {
             'user': {'read_only': True}  # Make the user field read-only
         }
-
+    def get_total_cost(self, obj):
+        return obj.total_cost
     def create(self, validated_data):
-        cart = models.Cart.objects.create(
-            user=self.context['request'].user,  # Assign the authenticated user
-            product=validated_data['product'],
-            quantity=validated_data['quantity']
-        )
+        product = validated_data.pop('product')
+        try:
+            p = models.Product.objects.get(name=product)
+        except models.Product.DoesNotExist:
+            raise serializers.ValidationError("Invalid product ID.")
+        
+        if p.is_active == False:
+            raise serializers.ValidationError(f"This product is inactive, please choose a new one!")
+
+        if p.stock_quantity < validated_data.get('quantity',1):
+            raise serializers.ValidationError(f"Insufficient stock for product ID {product}. Available stock: {p.stock_quantity}.")
+
+
+        cart =  models.Cart.objects.create(user=self.context['request'].user, 
+            product=product, **validated_data)
+      
         return cart
 
     def update(self, instance, validated_data):
-        instance.product = validated_data.get('product', instance.product)
+        product = validated_data.pop('product')
+
+        try:
+            p = models.Product.objects.get(name=product)
+        except models.Product.DoesNotExist:
+            raise serializers.ValidationError("Invalid product ID.")
+        
+        if p.is_active == False:
+            raise serializers.ValidationError(f"This product is inactive, please choose a new one!")
+
+        if p.stock_quantity < validated_data.pop('quantity'):
+            raise serializers.ValidationError(f"Insufficient stock for product ID {product}. Available stock: {p.stock_quantity}.")
+
+        instance.product = product
         instance.quantity = validated_data.get('quantity', instance.quantity)
         instance.save()
         return instance
 
 class OrderSerializer(serializers.ModelSerializer):
-    
-   city_id = serializers.PrimaryKeyRelatedField(queryset=models.City.objects.all(), source='city', write_only=True)
-   product_id = serializers.PrimaryKeyRelatedField(queryset=models.Product.objects.all(), source='product', write_only=True)
+   city = serializers.PrimaryKeyRelatedField(queryset=models.City.objects.all())
+   product = serializers.PrimaryKeyRelatedField(queryset=models.Product.objects.all())
    state = serializers.SerializerMethodField() 
-
-   total_cost = serializers.ReadOnlyField()
-
+   total_cost = serializers.SerializerMethodField()
+   
    class Meta:
         model = models.Order
         fields = '__all__'  
@@ -215,9 +245,10 @@ class OrderSerializer(serializers.ModelSerializer):
         }
    def get_state(self, obj):
         return obj.city.state.id if obj.city else None
-
+   def get_total_cost(self, obj):
+        return obj.total_cost
    def validate(self, data):
-        required_fields = ['street_address', 'city_id', 'postal_code', 'phone_number']
+        required_fields = ['street_address', 'city', 'postal_code', 'phone_number']
         for field in required_fields:
             if field not in data:
                 raise serializers.ValidationError(f"{field} is required.")
@@ -225,29 +256,28 @@ class OrderSerializer(serializers.ModelSerializer):
         return data
 
    def create(self, validated_data):
-        city_id = validated_data.pop('city_id')
-        product_id = validated_data.pop('product_id')
-
+        city = validated_data.pop('city')
+        product = validated_data.pop('product')
+       
         try:
-            city = models.City.objects.get(id=city_id)
+            c = models.City.objects.get(name=city)
         except models.City.DoesNotExist:
             raise serializers.ValidationError("Invalid city ID.")
         
         try:
-            product = models.Product.objects.get(id=product_id)
+            p = models.Product.objects.get(name=product)
         except models.Product.DoesNotExist:
             raise serializers.ValidationError("Invalid product ID.")
         
-        if product.is_active == False:
+        if p.is_active == False:
             raise serializers.ValidationError(f"This product is inactive, please choose a new one!")
 
-        if product.stock_quantity < validated_data.pop('quantity'):
-            raise serializers.ValidationError(f"Insufficient stock for product ID {product_id}. Available stock: {product.stock_quantity}.")
+        if p.stock_quantity < validated_data.get('quantity',1):
+            raise serializers.ValidationError(f"Insufficient stock for product ID {product}. Available stock: {p.stock_quantity}.")
 
-        state = city.state
+        state = c.state
 
         order = models.Order.objects.create(
-            user=self.context['request'].user,
             city=city,
             state=state,
             product=product,
@@ -257,33 +287,32 @@ class OrderSerializer(serializers.ModelSerializer):
         return order
    
    def update(self, instance, validated_data):
-        
-        if instance.status != 'pending':
+        if instance.status != 'PENDING':
             raise serializers.ValidationError("Only orders with status 'PENDING' can be updated.")
 
-        city_id = validated_data.pop('city_id', {}).get('id')
-        product_id = validated_data.pop('product_id', {}).get('id')
+        city = validated_data.pop('city')
+        product = validated_data.pop('product')
 
-        if city_id:
+        if city:
             try:
-                city = models.City.objects.get(id=city_id)
-                instance.city = city
-                instance.state = city.state
+                c = models.City.objects.get(name=city)
+                instance.city = c
+                instance.state = c.state
             except models.City.DoesNotExist:
                 raise serializers.ValidationError("Invalid city ID.")
         
-        if product_id:
+        if product:
             try:
-                product = models.Product.objects.get(id=product_id)
-                instance.product = product
+                p = models.Product.objects.get(name=product)
+                instance.product = p
             except models.Product.DoesNotExist:
                 raise serializers.ValidationError("Invalid product ID.")
             
-        if product.is_active == False:
+        if p.is_active == False:
             raise serializers.ValidationError(f"This product is inactive, please choose a new one!")
 
-        if product.stock_quantity < validated_data.pop('quantity'):
-            raise serializers.ValidationError(f"Insufficient stock for product ID {product_id}. Available stock: {product.stock_quantity}.")
+        if p.stock_quantity < validated_data.pop('quantity'):
+            raise serializers.ValidationError(f"Insufficient stock for product ID {product}. Available stock: {p.stock_quantity}.")
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

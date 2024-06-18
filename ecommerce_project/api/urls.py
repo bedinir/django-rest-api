@@ -20,7 +20,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
     path('products/<int:pk>/activate-deactivate/', views.ProductActivateDeactivateView.as_view(), name='product-activate-deactivate'),
-
+    path('cart-to-order/', views.CartToOrderView.as_view(), name='cart-to-order'),
     # path('register/', views.RegisterView.as_view(), name='register'),
     # path('login/', views.LoginView.as_view(), name='login')
 ]

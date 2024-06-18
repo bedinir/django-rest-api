@@ -78,9 +78,10 @@ class City(models.Model):
         verbose_name = 'City'
         verbose_name_plural = 'Cities'
 
+    # def __str__(self):
+    #     return f"{self.name}, {self.state.abbreviation}"
     def __str__(self):
-        return f"{self.name}, {self.state.abbreviation}"
-
+        return f"{self.name}"
 class Brand(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
@@ -99,10 +100,10 @@ class Category(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
-        super(Category, self).save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if not self.slug:
+    #         self.slug = slugify(self.name)
+    #     super(Category, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Category'
