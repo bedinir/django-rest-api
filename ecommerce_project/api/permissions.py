@@ -34,7 +34,7 @@ class IsAdminOrOwner(permissions.BasePermission):
             if request.method in permissions.SAFE_METHODS:
                 return obj.user == request.user
             if request.method in ['PUT', 'PATCH', 'DELETE']:
-                return obj.user == request.user and obj.status == 'PENDING'
+                return obj.user == request.user
         return False
     
 class IsAdmin(permissions.BasePermission):
