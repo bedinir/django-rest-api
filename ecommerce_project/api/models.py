@@ -154,6 +154,16 @@ class Cart(models.Model):
           else:
             return self.quantity * self.product.price
 
+    def update_quantity(self, new_quantity):
+        if new_quantity > 0:
+            self.quantity = new_quantity
+            self.save()
+        else:
+            raise ValueError("Quantity should be a positive integer.")
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product.name} for {self.user.name}"
+
 
 class Order(models.Model):
     STATUS_CHOICES = [

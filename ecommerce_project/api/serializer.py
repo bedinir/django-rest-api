@@ -105,14 +105,73 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    category_id = serializers.PrimaryKeyRelatedField(queryset=models.Category.objects.all(), source='category', write_only=True)
+    brand_id = serializers.PrimaryKeyRelatedField(queryset=models.Brand.objects.all(), source='brand', write_only=True)
     class Meta:
         model = models.Product
         fields = '__all__'
+        read_only_fields = ['slug', 'created_at', 'updated_at','is_active'] 
 
+    # Ensure discount_price is less than price if provided
+    def validate(self, data):
+        price = data.get('price')
+        discount_price = data.get('discount_price')
+        if discount_price and discount_price >= price:
+            raise serializers.ValidationError("Discount price must be less than the regular price.")
+        return data
 
+    def create(self, validated_data):
+        category_id = validated_data.pop('category_id')
+        brand_id = validated_data.pop('brand_id')
+
+        try:
+            category = models.Category.objects.get(id=category_id)
+        except  models.Category.DoesNotExist:
+            raise serializers.ValidationError("Invalid category ID.")
+
+        try:
+            brand =  models.Brand.objects.get(id=brand_id)
+        except  models.Brand.DoesNotExist:
+            raise serializers.ValidationError("Invalid brand ID.")
+
+        product =  models.Product.objects.create(category=category, brand=brand, **validated_data)
+        return product
+
+    def update(self, instance, validated_data):
+        if not instance.is_active:
+            raise serializers.ValidationError("Cannot update an inactive product.")
+        
+        category_id = validated_data.pop('category_id', None)
+        brand_id = validated_data.pop('brand_id', None)
+
+        instance.name = validated_data.get('name', instance.name)
+        instance.description = validated_data.get('description', instance.description)
+        instance.price = validated_data.get('price', instance.price)
+        instance.discount_price = validated_data.get('discount_price', instance.discount_price)
+        instance.stock_quantity = validated_data.get('stock_quantity', instance.stock_quantity)
+        instance.is_active = validated_data.get('is_active', instance.is_active)
+
+        if category_id:
+            try:
+                category =  models.Category.objects.get(id=category_id)
+                instance.category = category
+            except  models.Category.DoesNotExist:
+                raise serializers.ValidationError("Invalid category ID.")
+
+        if brand_id:
+            try:
+                brand =  models.Brand.objects.get(id=brand_id)
+                instance.brand = brand
+            except  models.Brand.DoesNotExist:
+                raise serializers.ValidationError("Invalid brand ID.")
+
+        instance.save()
+        return instance
+class ProductActivationSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField()
 
 class CartSerializer(serializers.ModelSerializer):
-    total_cost = serializers.ReadOnlyField()
+    total_cost = serializers.ReadOnlyField(source='get_total_cost')
 
     class Meta:
         model = models.Cart
@@ -122,7 +181,6 @@ class CartSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        """Create and return a new cart item"""
         cart = models.Cart.objects.create(
             user=self.context['request'].user,  # Assign the authenticated user
             product=validated_data['product'],
@@ -131,7 +189,6 @@ class CartSerializer(serializers.ModelSerializer):
         return cart
 
     def update(self, instance, validated_data):
-        """Update and return an existing cart item"""
         instance.product = validated_data.get('product', instance.product)
         instance.quantity = validated_data.get('quantity', instance.quantity)
         instance.save()

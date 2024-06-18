@@ -100,21 +100,41 @@ class CategoryViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated & (permissions.IsAdmin | permissions.IsCustomer)]
         return [permission() for permission in permission_classes]
 
-class ProductListCreateAPIView(generics.ListCreateAPIView):
+class ProductViewSet(viewsets.ModelViewSet):
     queryset = models.Product.objects.all()
     serializer_class = serializer.ProductSerializer
+    authentication_classes = [TokenAuthentication]
 
-class ProductRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    def get_permissions(self):
+        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            permission_classes = [IsAuthenticated & permissions.IsAdmin]
+        else:
+            permission_classes = [IsAuthenticated & (permissions.IsAdmin | permissions.IsCustomer)]
+        return [permission() for permission in permission_classes]
+class ProductActivateDeactivateView(generics.UpdateAPIView):
     queryset = models.Product.objects.all()
-    serializer_class = serializer.ProductSerializer
+    serializer_class = serializer.ProductActivationSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated & permissions.IsAdmin]
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        
+        is_active = serializer.validated_data['is_active']
+        instance.is_active = is_active
+        instance.save()
+        
+        return Response(serializer.ProductSerializer(instance).data)
 
 
 class CartViewSet(viewsets.ModelViewSet):
-    authentication_classes = (TokenAuthentication,)
-    serializer_class = serializer.CartSerializer
     queryset = models.Cart.objects.all()
+    serializer_class = serializer.CartSerializer
+    authentication_classes = [TokenAuthentication]
 
-    permission_classes = (IsAuthenticated, permissions.IsOwner, permissions.IsCustomer)
+    permission_classes = [IsAuthenticated, permissions.IsOwner, permissions.IsCustomer]
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
