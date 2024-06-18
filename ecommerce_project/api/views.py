@@ -34,7 +34,7 @@ class LoginView(generics.GenericAPIView):
             'email': user.email,
             'name': user.name,
             'role': user.role,
-            'token': token.key
+            'token': token
         }, status=status.HTTP_200_OK)
 
 class UserProfileFeedViewSet(viewsets.ModelViewSet):
