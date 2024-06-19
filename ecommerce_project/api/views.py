@@ -1,6 +1,7 @@
 from rest_framework import generics, viewsets,status,views
 from rest_framework.settings import api_settings
 from rest_framework.authentication import TokenAuthentication
+from .authentication import CustomTokenAuthentication
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from django.db import transaction
@@ -57,7 +58,7 @@ class UserProfileFeedViewSet(viewsets.ModelViewSet):
 class StateViewSet(viewsets.ModelViewSet):
     queryset = models.State.objects.all()
     serializer_class = serializer.StateSerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [CustomTokenAuthentication]
 
     def get_permissions(self):
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -69,7 +70,7 @@ class StateViewSet(viewsets.ModelViewSet):
 class CityViewSet(viewsets.ModelViewSet):
     queryset = models.City.objects.all()
     serializer_class = serializer.CitySerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [CustomTokenAuthentication]
 
     def get_permissions(self):
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -81,7 +82,7 @@ class CityViewSet(viewsets.ModelViewSet):
 class BrandViewSet(viewsets.ModelViewSet):
     queryset = models.Brand.objects.all()
     serializer_class = serializer.BrandSerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [CustomTokenAuthentication]
 
     def get_permissions(self):
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -93,7 +94,7 @@ class BrandViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = models.Category.objects.all()
     serializer_class = serializer.CategorySerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [CustomTokenAuthentication]
 
     def get_permissions(self):
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -105,7 +106,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = models.Product.objects.all()
     serializer_class = serializer.ProductSerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [CustomTokenAuthentication]
 
     def get_permissions(self):
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -124,7 +125,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 class ProductActivateDeactivateView(generics.UpdateAPIView):
     queryset = models.Product.objects.all()
     serializer_class = serializer.ProductActivationSerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [CustomTokenAuthentication]
     permission_classes = [IsAuthenticated & permissions.IsAdmin]
 
     def patch(self, request, pk):
@@ -143,15 +144,14 @@ class ProductActivateDeactivateView(generics.UpdateAPIView):
 class CartViewSet(viewsets.ModelViewSet):
     queryset = models.Cart.objects.all()
     serializer_class = serializer.CartSerializer
-    authentication_classes = [TokenAuthentication]
-
+    authentication_classes = [CustomTokenAuthentication]
     permission_classes = [IsAuthenticated, permissions.IsOwner, permissions.IsCustomer]
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
 
 class OrderViewSet(viewsets.ModelViewSet):
-    
+    authentication_classes = [CustomTokenAuthentication]
     queryset = models.Order.objects.all()
     serializer_class = serializer.OrderSerializer
     permission_classes = [IsAuthenticated, permissions.IsAdminOrOwner]
@@ -182,7 +182,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     
 class CartToOrderView(views.APIView):
     permission_classes = [IsAuthenticated, permissions.IsCustomer]
-    authentication_classes = [TokenAuthentication] 
+    authentication_classes = [CustomTokenAuthentication]
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
